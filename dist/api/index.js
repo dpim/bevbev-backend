@@ -1,11 +1,13 @@
-"use strict";
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
-Object.defineProperty(exports, "__esModule", { value: true });
-const express_1 = __importDefault(require("express"));
-const app = (0, express_1.default)();
-app.get("/test", (req, res) => res.send("Express on Vercel"));
+import express from 'express';
+import { findPlaces } from '../util/google.js';
+const app = express();
+app.get("/test", async (req, res) => {
+    res.send("Express on Vercel");
+});
+app.get("/test2", async (req, res) => {
+    const bars = await findPlaces(37.7749, -122.4194, 'bar');
+    res.send(bars);
+});
 const port = process.env.PORT || 3000;
 app.listen(port, () => console.log(`Server running on port ${port}`));
-exports.default = app;
+export default app;
