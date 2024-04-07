@@ -19,7 +19,7 @@
     "typescript": "^4.5.4"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && cp api/index.js dist/api/index.js",
     "start": "node dist/api/index.js",
     "tsc:w": "tsc -w",
     "start:dev": "nodemon dist/api/index.js",
