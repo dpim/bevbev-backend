@@ -1,7 +1,8 @@
 {
   "type": "module",
   "dependencies": {
-    "express": "^4.18.3"
+    "express": "^4.18.3",
+    "pg-promise": "^11.6.0"
   },
   "name": "bevbev-backend",
   "version": "1.0.0",
