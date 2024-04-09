@@ -1,5 +1,6 @@
 import fetch from 'node-fetch';
 import * as dotenv from 'dotenv';
+import { MAX_DISTANCE, NUM_RESULTS } from './constants.js';
 
 dotenv.config();
 
@@ -22,8 +23,8 @@ export async function findFsqDrinks(lat: number, lon: number): Promise<any> {
 
 
 async function findFourSqVenues(lat: number, lon: number, query: string, categoryId: string): Promise<any> {
-    const radius = 1000;
-    const limit = 5; // Number of results
+    const radius = MAX_DISTANCE;
+    const limit = NUM_RESULTS; // Number of results
     const url = new URL('https://api.foursquare.com/v3/places/search');
     const accessToken = FOURSQUARE_API_KEY;
     url.searchParams.append('query', query);
@@ -32,11 +33,10 @@ async function findFourSqVenues(lat: number, lon: number, query: string, categor
     url.searchParams.append('categories', categoryId);
     url.searchParams.append('exclude_all_chains', 'true');
     url.searchParams.append('open_now', 'true');
-    url.searchParams.append('fields', 'fsq_id,categories,distance,description,features,features,hours,location,link,menu,name,photos,popularity,price,rating');
+    url.searchParams.append('fields', 'fsq_id,categories,distance,description,features,features,hours,geocodes,location,link,menu,name,photos,popularity,price,rating');
     url.searchParams.append('limit', `${limit}`);
 
     try {
-        console.log('Fetching data...');
         const response = await fetch(url.toString(), {
             headers: {
                 'Authorization': `${accessToken}`
@@ -44,7 +44,6 @@ async function findFourSqVenues(lat: number, lon: number, query: string, categor
         });
     
         const data: any = await response.json();
-        console.log('Parsed data:', data);
     
         if (!response.ok) {
             throw new Error('Response not OK');
@@ -62,6 +61,7 @@ async function findFourSqVenues(lat: number, lon: number, query: string, categor
                 link: result.link,
                 location: result.location,
                 categories: result.categories,
+                geocodes: result.geocodes,
                 features: result.features,
                 hours: result.hours,
                 price: result.price,

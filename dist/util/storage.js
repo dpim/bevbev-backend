@@ -1,6 +1,18 @@
 import { sql } from '@vercel/postgres';
+import { MAX_DISTANCE } from './constants.js';
+async function clearTable() {
+    await sql `
+        TRUNCATE TABLE Restaurants RESTART IDENTITY CASCADE;
+    `;
+}
+async function addUniquConstraint() {
+    await sql `
+    ALTER TABLE Restaurants ADD CONSTRAINT unique_lat_lon_name UNIQUE (lat, lon, name);
+    `;
+}
 export async function createRestaurantTableIfNotExists() {
     try {
+        //await clearTable();
         // Enable PostGIS extension if not already enabled
         await sql `
             CREATE EXTENSION IF NOT EXISTS postgis;
@@ -32,26 +44,43 @@ export async function createRestaurantTableIfNotExists() {
 }
 export async function getStoredRestaurants(lat, lon, venueType) {
     try {
-        await createRestaurantTableIfNotExists(); // Check and create table if not exists
+        // await createRestaurantTableIfNotExists(); // Ensure the table exists
         const currentTime = new Date();
         currentTime.setMinutes(Math.round(currentTime.getMinutes() / 30) * 30); // Round to the nearest 30 minutes
-        // Calculate the distance using Haversine formula
+        const currentDay = currentTime.getDay() + 1; // Get current day of week (1=Sunday, 7=Saturday)
+        const formattedTime = `${currentTime.getHours().toString().padStart(2, '0')}${currentTime.getMinutes().toString().padStart(2, '0')}`; // 'HHMM' format
+        // Serialize your object to a JSON string
+        const hoursJson = JSON.stringify({ day: currentDay, open: formattedTime, close: formattedTime });
         const result = await sql `
             SELECT *,
-                   6371 * 2 * ASIN(SQRT(POWER(SIN((RADIANS(${lat}) - RADIANS(lat)) / 2), 2) + 
-                   COS(RADIANS(${lat})) * COS(RADIANS(lat)) * POWER(SIN((RADIANS(${lon}) - RADIANS(lon)) / 2), 2))) AS distance
-            FROM Restaurants 
+                6371 * 2 * ASIN(SQRT(POWER(SIN((RADIANS(${lat}) - RADIANS(lat)) / 2), 2) + 
+                COS(RADIANS(${lat})) * COS(RADIANS(lat)) * 
+                POWER(SIN((RADIANS(${lon}) - RADIANS(lon)) / 2), 2))) AS distance
+            FROM Restaurants
             WHERE 
                 6371 * 2 * ASIN(SQRT(POWER(SIN((RADIANS(${lat}) - RADIANS(lat)) / 2), 2) + 
-                COS(RADIANS(${lat})) * COS(RADIANS(lat)) * POWER(SIN((RADIANS(${lon}) - RADIANS(lon)) / 2), 2))) <= 500 
-                AND queried_at = ${currentTime}
-                AND venue_type = ${venueType};
+                COS(RADIANS(${lat})) * COS(RADIANS(lat)) * 
+                POWER(SIN((RADIANS(${lon}) - RADIANS(lon)) / 2), 2))) <= ${MAX_DISTANCE}
+                AND venue_type = ${venueType}
+                AND (
+                    hours->'regular' @> ${hoursJson}::jsonb
+                    OR EXISTS (
+                        SELECT 1
+                        FROM jsonb_array_elements(hours->'regular') AS elem
+                        WHERE 
+                            (elem->>'day')::int = ${currentDay}
+                            AND
+                            (elem->>'open')::text <= ${formattedTime}
+                            AND
+                            (elem->>'close')::text >= ${formattedTime}
+                    )
+                );
         `;
-        // Extract and return just the rows from the result array
+        // console.log(result);
         return result.rows;
     }
     catch (error) {
-        throw new Error(error.message);
+        throw new Error(`Error fetching venues: ${error.message}`);
     }
 }
 export async function storeRestaurants(restaurants, venueType) {
@@ -59,19 +88,21 @@ export async function storeRestaurants(restaurants, venueType) {
         if (restaurants.length === 0) {
             return { result: 'No restaurants to store' };
         }
-        await createRestaurantTableIfNotExists();
+        // await createRestaurantTableIfNotExists();
         // Begin transaction
         await sql `BEGIN`;
         for (const restaurant of restaurants) {
-            const { fsq_id, name, location, description = '', attributes = {}, hours = {}, menu = {}, photos = [] } = restaurant;
+            const { fsq_id, name, location, description = '', geocodes = {}, attributes = {}, hours = {}, menu = {}, photos = [] } = restaurant;
+            const latitude = geocodes?.main?.latitude;
+            const longitude = geocodes?.main?.longitude;
             await sql `
                 INSERT INTO Restaurants (
                     venue_type, name, lat, lon, description, attributes, hours, menu, photos, queried_at
                 ) VALUES (
                     ${venueType},
                     ${name},
-                    ${location.lat},
-                    ${location.lon},
+                    ${latitude},
+                    ${longitude},
                     ${description},
                     ${JSON.stringify(attributes)},
                     ${JSON.stringify(hours)},
@@ -79,13 +110,23 @@ export async function storeRestaurants(restaurants, venueType) {
                     ${JSON.stringify(photos)},
                     NOW()
                 )
+                ON CONFLICT (lat, lon, name)
+                DO UPDATE SET
+                    description = EXCLUDED.description,
+                    attributes = EXCLUDED.attributes,
+                    hours = EXCLUDED.hours,
+                    menu = EXCLUDED.menu,
+                    photos = EXCLUDED.photos,
+                    queried_at = NOW()
             `;
         }
         // Commit transaction
         await sql `COMMIT`;
+        console.log("stored");
         return { result: 'Restaurants stored successfully' };
     }
     catch (error) {
+        console.log("aqui");
         // Rollback in case of an error
         await sql `ROLLBACK`;
         throw new Error(error.message);

@@ -1,5 +1,6 @@
 import { findFsqCoffee, findFsqDrinks } from "./foursquare.js";
 import { getStoredRestaurants, storeRestaurants } from "./storage.js";
+import { NUM_RESULTS } from './constants.js';
 
 export enum VenueType { 
     drinks = "drinks",
@@ -10,7 +11,10 @@ export async function getCachedOrFetch(latitude: number, longitude: number, venu
     // check DB cache
     let results = await getStoredRestaurants(latitude, longitude, venueType)
     // if insufficient results, issue a new query
-    if (!results || results.length < 5){
+    console.log("results1 --> ", results.length)
+    
+    if (!results || results.length < NUM_RESULTS){
+        console.log("results2 --> ", results.length)
         results = await makeRequestAndCache(latitude, longitude, venueType);
     }
     // return
@@ -24,7 +28,7 @@ async function makeRequestAndCache(latitude: number, longitude: number, venueTyp
     } else if (venueType === "drinks"){
         fsqResults = await findFsqDrinks(latitude, longitude);
     }
-    
+
     await storeRestaurants(fsqResults, venueType);
     return fsqResults ?? [];
 }
