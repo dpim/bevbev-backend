@@ -50,19 +50,18 @@ app.get("/v1/venues", async (req, res) => {
                 res.status(400).send({ error: "Invalid ISO time format." });
             }
         }
-        else {
-            res.status(400).send({ error: "isoTime must be a string." });
-        }
         // if not query params, try to derive
         if (!latitude || !longitude) {
             latitude = req.location?.latitude;
             longitude = req.location?.longitude;
         }
+        if (hour) {
+            venueType = venueType ?? (hour >= 5 && hour < 17 ? VenueType.coffee : VenueType.drinks);
+        }
         // if STILL not there, return an error
-        if (!latitude || !longitude || !hour) {
+        if (!latitude || !longitude || !venueType) {
             return res.status(400).json({ error: 'Location information or venue type is missing from the request.' });
         }
-        venueType = venueType ?? (hour >= 5 && hour < 17 ? VenueType.coffee : VenueType.drinks);
         // find venues based on metadata
         const venues = await getCachedOrFetch(Number(latitude), Number(longitude), venueType);
         res.json(venues);

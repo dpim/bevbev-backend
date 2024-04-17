@@ -13,12 +13,12 @@ const FOURSQUARE_API_KEY = process.env.FOURSQUARE_API_KEY;
 
 export async function findFsqCoffee(lat: number, lon: number): Promise<any> {
     // const coffeeShopCategoryId = "4bf58dd8d48988d1e0931735";
-    return findFourSqVenues(lat, lon, "cafe", "13034");
+    return findFourSqVenues(lat, lon, "cafe", "13035");
 }
 
 export async function findFsqDrinks(lat: number, lon: number): Promise<any> {
     // const barCategoryId = "4bf58dd8d48988d116941735"
-    return findFourSqVenues(lat, lon, "bar", "13009");
+    return findFourSqVenues(lat, lon, "bar", "13003");
 }
 
 

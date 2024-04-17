@@ -1,5 +1,4 @@
 import { sql } from '@vercel/postgres';
-import { MAX_DISTANCE } from './constants.js';
 async function clearTable() {
     await sql `
         TRUNCATE TABLE Restaurants RESTART IDENTITY CASCADE;
@@ -60,7 +59,7 @@ export async function getStoredRestaurants(lat, lon, venueType) {
             WHERE 
                 6371 * 2 * ASIN(SQRT(POWER(SIN((RADIANS(${lat}) - RADIANS(lat)) / 2), 2) + 
                 COS(RADIANS(${lat})) * COS(RADIANS(lat)) * 
-                POWER(SIN((RADIANS(${lon}) - RADIANS(lon)) / 2), 2))) <= ${MAX_DISTANCE}
+                POWER(SIN((RADIANS(${lon}) - RADIANS(lon)) / 2), 2))) <= 1
                 AND venue_type = ${venueType}
                 AND (
                     hours->'regular' @> ${hoursJson}::jsonb
