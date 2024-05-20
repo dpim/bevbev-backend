@@ -1,5 +1,6 @@
 import { sql } from '@vercel/postgres';
 import { MAX_DISTANCE, NUM_RESULTS } from './constants.js';
+import { clear } from 'console';
 
 interface Restaurant {
     id: number;
@@ -23,7 +24,7 @@ async function clearTable(): Promise<void> {
     `;
 }
 
-async function addUniquConstraint(): Promise<void> {
+async function addUniqueConstraint(): Promise<void> {
     await sql`
     ALTER TABLE Restaurants ADD CONSTRAINT unique_lat_lon_name UNIQUE (lat, lon, name);
     `;
@@ -31,7 +32,7 @@ async function addUniquConstraint(): Promise<void> {
 
 export async function createRestaurantTableIfNotExists(): Promise<void> {
     try {
-        //await clearTable();
+        // await clearTable();
         // Enable PostGIS extension if not already enabled
         await sql`
             CREATE EXTENSION IF NOT EXISTS postgis;
@@ -63,6 +64,7 @@ export async function createRestaurantTableIfNotExists(): Promise<void> {
 }
 
 export async function getStoredRestaurants(lat: number, lon: number, venueType: string): Promise<any[]> {
+
     try {
         // await createRestaurantTableIfNotExists(); // Ensure the table exists
 
@@ -120,12 +122,12 @@ export async function storeRestaurants(restaurants: Restaurant[], venueType: str
         await sql`BEGIN`;
 
         for (const restaurant of restaurants) {
-            const { fsq_id, name, location, description = '', geocodes = {}, attributes = {}, hours = {}, menu = {}, photos = [] } = restaurant;
+            const { fsq_id, name, location = {}, description = '', geocodes = {}, attributes = {}, hours = {}, menu = {}, photos = [] } = restaurant;
             const latitude = geocodes?.main?.latitude;
             const longitude = geocodes?.main?.longitude;
             await sql`
                 INSERT INTO Restaurants (
-                    venue_type, name, lat, lon, description, attributes, hours, menu, photos, queried_at
+                    venue_type, name, lat, lon, description, attributes, hours, menu, photos, location, queried_at
                 ) VALUES (
                     ${venueType},
                     ${name},
@@ -136,6 +138,7 @@ export async function storeRestaurants(restaurants: Restaurant[], venueType: str
                     ${JSON.stringify(hours)},
                     ${JSON.stringify(menu)},
                     ${JSON.stringify(photos)},
+                    ${JSON.stringify(location)},
                     NOW()
                 )
                 ON CONFLICT (lat, lon, name)

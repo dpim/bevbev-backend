@@ -10,9 +10,9 @@ export async function getCachedOrFetch(latitude, longitude, venueType) {
     // check DB cache
     let results = await getStoredRestaurants(latitude, longitude, venueType);
     // if insufficient results, issue a new query
-    console.log("results1 --> ", results.length);
+    // console.log("results1 --> ", results.length)
     if (!results || results.length < NUM_RESULTS) {
-        console.log("results2 --> ", results.length);
+        // console.log("results2 --> ", results.length)
         results = await makeRequestAndCache(latitude, longitude, venueType);
     }
     // return

@@ -4,14 +4,14 @@ async function clearTable() {
         TRUNCATE TABLE Restaurants RESTART IDENTITY CASCADE;
     `;
 }
-async function addUniquConstraint() {
+async function addUniqueConstraint() {
     await sql `
     ALTER TABLE Restaurants ADD CONSTRAINT unique_lat_lon_name UNIQUE (lat, lon, name);
     `;
 }
 export async function createRestaurantTableIfNotExists() {
     try {
-        //await clearTable();
+        // await clearTable();
         // Enable PostGIS extension if not already enabled
         await sql `
             CREATE EXTENSION IF NOT EXISTS postgis;
@@ -91,12 +91,12 @@ export async function storeRestaurants(restaurants, venueType) {
         // Begin transaction
         await sql `BEGIN`;
         for (const restaurant of restaurants) {
-            const { fsq_id, name, location, description = '', geocodes = {}, attributes = {}, hours = {}, menu = {}, photos = [] } = restaurant;
+            const { fsq_id, name, location = {}, description = '', geocodes = {}, attributes = {}, hours = {}, menu = {}, photos = [] } = restaurant;
             const latitude = geocodes?.main?.latitude;
             const longitude = geocodes?.main?.longitude;
             await sql `
                 INSERT INTO Restaurants (
-                    venue_type, name, lat, lon, description, attributes, hours, menu, photos, queried_at
+                    venue_type, name, lat, lon, description, attributes, hours, menu, photos, location, queried_at
                 ) VALUES (
                     ${venueType},
                     ${name},
@@ -107,6 +107,7 @@ export async function storeRestaurants(restaurants, venueType) {
                     ${JSON.stringify(hours)},
                     ${JSON.stringify(menu)},
                     ${JSON.stringify(photos)},
+                    ${JSON.stringify(location)},
                     NOW()
                 )
                 ON CONFLICT (lat, lon, name)
