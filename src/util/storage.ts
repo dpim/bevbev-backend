@@ -64,45 +64,42 @@ export async function createRestaurantTableIfNotExists(): Promise<void> {
 }
 
 export async function getStoredRestaurants(lat: number, lon: number, venueType: string): Promise<any[]> {
-
     try {
-        // await createRestaurantTableIfNotExists(); // Ensure the table exists
-
         const currentTime = new Date();
-        currentTime.setMinutes(Math.round(currentTime.getMinutes() / 30) * 30); // Round to the nearest 30 minutes
-        const currentDay = currentTime.getDay() + 1; // Get current day of week (1=Sunday, 7=Saturday)
-        const formattedTime = `${currentTime.getHours().toString().padStart(2, '0')}${currentTime.getMinutes().toString().padStart(2, '0')}`; // 'HHMM' format
-
-        // Serialize your object to a JSON string
-        const hoursJson = JSON.stringify({ day: currentDay, open: formattedTime, close: formattedTime });
+        currentTime.setMinutes(Math.round(currentTime.getMinutes() / 30) * 30);
+        const currentDay = currentTime.getDay() + 1;
+        const formattedTime = currentTime.toTimeString().slice(0, 5).replace(':', '');
 
         const result = await sql`
-            SELECT *,
-                6371 * 2 * ASIN(SQRT(POWER(SIN((RADIANS(${lat}) - RADIANS(lat)) / 2), 2) + 
-                COS(RADIANS(${lat})) * COS(RADIANS(lat)) * 
-                POWER(SIN((RADIANS(${lon}) - RADIANS(lon)) / 2), 2))) AS distance
-            FROM Restaurants
-            WHERE 
-                6371 * 2 * ASIN(SQRT(POWER(SIN((RADIANS(${lat}) - RADIANS(lat)) / 2), 2) + 
-                COS(RADIANS(${lat})) * COS(RADIANS(lat)) * 
-                POWER(SIN((RADIANS(${lon}) - RADIANS(lon)) / 2), 2))) <= 1
+            WITH nearby_restaurants AS (
+                SELECT *, 
+                    ST_Distance(
+                        ST_SetSRID(ST_MakePoint(lon, lat), 4326)::geography,
+                        ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography
+                    ) / 1000 AS distance
+                FROM Restaurants
+                WHERE ST_DWithin(
+                    ST_SetSRID(ST_MakePoint(lon, lat), 4326)::geography,
+                    ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography,
+                    1000
+                )
                 AND venue_type = ${venueType}
-                AND (
-                    hours->'regular' @> ${hoursJson}::jsonb
-                    OR EXISTS (
-                        SELECT 1
-                        FROM jsonb_array_elements(hours->'regular') AS elem
-                        WHERE 
-                            (elem->>'day')::int = ${currentDay}
-                            AND
-                            (elem->>'open')::text <= ${formattedTime}
-                            AND
-                            (elem->>'close')::text >= ${formattedTime}
-                    )
-                );
+            )
+            SELECT * FROM nearby_restaurants
+            WHERE EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements(hours->'regular') AS elem
+                WHERE 
+                    (elem->>'day')::int = ${currentDay}
+                    AND
+                    (elem->>'open')::text <= ${formattedTime}
+                    AND
+                    (elem->>'close')::text >= ${formattedTime}
+            )
+            ORDER BY distance
+            LIMIT 50;
         `;
 
-        // console.log(result);
         return result.rows;
     } catch (error: any) {
         throw new Error(`Error fetching venues: ${error.message}`);

@@ -3,6 +3,7 @@ import geoip from 'geoip-lite';
 import moment from 'moment';
 import { Request, Response, NextFunction } from 'express';
 import { getCachedOrFetch, VenueType } from '../util/enrich.js';
+import { z } from 'zod';
 
 const app = express();
 
@@ -48,48 +49,59 @@ app.get("/test", async (req: Request, res: Response) => {
     res.send("Express on Vercel");
 });
 
+const VenueRequestSchema = z.object({
+  latitude: z.string().optional(),
+  longitude: z.string().optional(),
+  venueType: z.nativeEnum(VenueType).optional(),
+  isoTime: z.string().optional(),
+});
+
 app.get("/v1/venues", async (req: CustomRequest, res: Response) => {
-    try {
-        let { latitude, longitude, venueType, isoTime } = req.query;
-        const dateHeader = req.get('Date');
-        let hour = null;
-
-        if (dateHeader) {
-            // Try to convert the Date header to a JavaScript Date object
-            hour = getHourFromISOTime(new Date(dateHeader).toISOString());
-            console.log(`Received a request with a Date header at ${hour} for ${req.originalUrl}`);
-        }
-
-        if (typeof isoTime === 'string') {
-            try {
-                hour = getHourFromISOTime(isoTime);
-            } catch (error) {
-                res.status(400).send({ error: "Invalid ISO time format." });
-            }
-        } 
-
-        // if not query params, try to derive
-        if (!latitude || !longitude) {
-            latitude = req.location?.latitude;
-            longitude = req.location?.longitude;
-        }
-
-        if (hour) {
-            venueType = venueType ?? (hour >= 5 && hour < 17 ? VenueType.coffee : VenueType.drinks);
-        }
-
-        // if STILL not there, return an error
-        if (!latitude || !longitude || !venueType) {
-            return res.status(400).json({ error: 'Location information or venue type is missing from the request.' });
-        }
-
-        // find venues based on metadata
-        const venues = await getCachedOrFetch(Number(latitude), Number(longitude), venueType as VenueType);
-        res.json(venues);
-    } catch (error) {
-        console.error("Error fetching venues:", error);
-        res.status(500).json({ error: 'Internal server error' });
+  try {
+    const result = VenueRequestSchema.safeParse(req.query);
+    if (!result.success) {
+      return res.status(400).json({ error: 'Invalid request parameters', details: result.error.issues });
     }
+
+    let { latitude, longitude, venueType, isoTime } = result.data;
+    const dateHeader = req.get('Date');
+    let hour: number | null = null;
+
+    if (dateHeader) {
+      hour = getHourFromISOTime(new Date(dateHeader).toISOString());
+      console.log(`Received a request with a Date header at ${hour} for ${req.originalUrl}`);
+    }
+
+    if (isoTime) {
+      try {
+        hour = getHourFromISOTime(isoTime);
+      } catch (error) {
+        return res.status(400).json({ error: "Invalid ISO time format." });
+      }
+    }
+
+    // if not query params, try to derive
+    if (!latitude || !longitude) {
+        latitude = req.location?.latitude;
+        longitude = req.location?.longitude;
+    }
+
+    if (hour) {
+        venueType = venueType ?? (hour >= 5 && hour < 17 ? VenueType.coffee : VenueType.drinks);
+    }
+
+    // if STILL not there, return an error
+    if (!latitude || !longitude || !venueType) {
+        return res.status(400).json({ error: 'Location information or venue type is missing from the request.' });
+    }
+
+    // find venues based on metadata
+    const venues = await getCachedOrFetch(Number(latitude), Number(longitude), venueType as VenueType);
+    res.json(venues);
+  } catch (error) {
+    console.error("Error fetching venues:", error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 });
 
 const port = process.env.PORT || 3000;
