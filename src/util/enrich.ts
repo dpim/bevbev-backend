@@ -10,15 +10,35 @@ export enum VenueType {
 export async function getCachedOrFetch(latitude: number, longitude: number, venueType: VenueType){
     // check DB cache
     let results = await getStoredRestaurants(latitude, longitude, venueType)
-    // if insufficient results, issue a new query
-    // console.log("results1 --> ", results.length)
     
     if (!results || results.length < NUM_RESULTS){
-        // console.log("results2 --> ", results.length)
-        results = await makeRequestAndCache(latitude, longitude, venueType);
+        const newResults = await makeRequestAndCache(latitude, longitude, venueType);
+        // Merge new results with existing results, preserving upvotes and downvotes
+        results = mergeResults(results, newResults);
     }
-    // return
+    
     return results;
+}
+
+function mergeResults(storedResults: any[], newResults: any[]): any[] {
+    const mergedResults = [...storedResults];
+    
+    newResults.forEach(newResult => {
+        const existingIndex = mergedResults.findIndex(r => r.fsq_id === newResult.fsq_id);
+        if (existingIndex === -1) {
+            // Add new result with default upvotes and downvotes
+            mergedResults.push({...newResult, upvotes: 0, downvotes: 0});
+        } else {
+            // Update existing result, preserving upvotes and downvotes
+            mergedResults[existingIndex] = {
+                ...newResult,
+                upvotes: mergedResults[existingIndex].upvotes,
+                downvotes: mergedResults[existingIndex].downvotes
+            };
+        }
+    });
+    
+    return mergedResults;
 }
 
 async function makeRequestAndCache(latitude: number, longitude: number, venueType: VenueType){

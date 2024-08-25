@@ -4,6 +4,7 @@ import moment from 'moment';
 import { Request, Response, NextFunction } from 'express';
 import { getCachedOrFetch, VenueType } from '../util/enrich.js';
 import { z } from 'zod';
+import { upvoteRestaurant, downvoteRestaurant } from '../util/storage.js';
 
 const app = express();
 
@@ -100,6 +101,30 @@ app.get("/v1/venues", async (req: CustomRequest, res: Response) => {
     res.json(venues);
   } catch (error) {
     console.error("Error fetching venues:", error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post("/v1/venues/:id/upvote", async (req: Request, res: Response) => {
+  try {
+    console.log("upvoting");
+    const { id } = req.params;
+    await upvoteRestaurant(Number(id));
+    res.json({ message: 'Upvote successful' });
+  } catch (error) {
+    console.error("Error upvoting restaurant:", error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.post("/v1/venues/:id/downvote", async (req: Request, res: Response) => {
+  try {
+    console.log("downvoting");
+    const { id } = req.params;
+    await downvoteRestaurant(Number(id));
+    res.json({ message: 'Downvote successful' });
+  } catch (error) {
+    console.error("Error downvoting restaurant:", error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

@@ -11,11 +11,8 @@ async function addUniqueConstraint() {
 }
 export async function createRestaurantTableIfNotExists() {
     try {
-        // await clearTable();
         // Enable PostGIS extension if not already enabled
-        await sql `
-            CREATE EXTENSION IF NOT EXISTS postgis;
-        `;
+        await sql `CREATE EXTENSION IF NOT EXISTS postgis;`;
         // Create Restaurants table if not exists
         await sql `
             CREATE TABLE IF NOT EXISTS Restaurants (
@@ -33,52 +30,84 @@ export async function createRestaurantTableIfNotExists() {
                 hours JSONB,
                 menu JSONB,
                 photos JSONB,
-                queried_at TIMESTAMP
+                queried_at TIMESTAMP,
+                upvotes INTEGER DEFAULT 0,
+                downvotes INTEGER DEFAULT 0
             );
         `;
+        // Add upvotes and downvotes columns if they don't exist
+        await sql `
+            DO $$ 
+            BEGIN 
+                ALTER TABLE Restaurants ADD COLUMN IF NOT EXISTS upvotes INTEGER DEFAULT 0;
+                ALTER TABLE Restaurants ADD COLUMN IF NOT EXISTS downvotes INTEGER DEFAULT 0;
+            EXCEPTION
+                WHEN duplicate_column THEN NULL;
+            END $$;
+        `;
+        // Add unique constraint if it doesn't exist
+        await sql `
+            DO $$
+            BEGIN
+                IF NOT EXISTS (
+                    SELECT 1 FROM pg_constraint WHERE conname = 'unique_lat_lon_name'
+                ) THEN
+                    ALTER TABLE Restaurants ADD CONSTRAINT unique_lat_lon_name UNIQUE (lat, lon, name);
+                END IF;
+            END $$;
+        `;
+        console.log("Table creation and updates completed successfully");
     }
     catch (error) {
-        throw new Error(error.message);
+        console.error(`Error in createRestaurantTableIfNotExists: ${error.message}`);
+        throw new Error(`Error creating Restaurants table: ${error.message}`);
     }
 }
 export async function getStoredRestaurants(lat, lon, venueType) {
+    // console.log("Entering getStoredRestaurants");
+    // await createRestaurantTableIfNotExists();
+    // await clearTable();
+    // console.log("Table cleared");
     try {
-        // await createRestaurantTableIfNotExists(); // Ensure the table exists
         const currentTime = new Date();
-        currentTime.setMinutes(Math.round(currentTime.getMinutes() / 30) * 30); // Round to the nearest 30 minutes
-        const currentDay = currentTime.getDay() + 1; // Get current day of week (1=Sunday, 7=Saturday)
-        const formattedTime = `${currentTime.getHours().toString().padStart(2, '0')}${currentTime.getMinutes().toString().padStart(2, '0')}`; // 'HHMM' format
-        // Serialize your object to a JSON string
-        const hoursJson = JSON.stringify({ day: currentDay, open: formattedTime, close: formattedTime });
+        currentTime.setMinutes(Math.round(currentTime.getMinutes() / 30) * 30);
+        const currentDay = currentTime.getDay() + 1;
+        const formattedTime = currentTime.toTimeString().slice(0, 5).replace(':', '');
         const result = await sql `
-            SELECT *,
-                6371 * 2 * ASIN(SQRT(POWER(SIN((RADIANS(${lat}) - RADIANS(lat)) / 2), 2) + 
-                COS(RADIANS(${lat})) * COS(RADIANS(lat)) * 
-                POWER(SIN((RADIANS(${lon}) - RADIANS(lon)) / 2), 2))) AS distance
-            FROM Restaurants
-            WHERE 
-                6371 * 2 * ASIN(SQRT(POWER(SIN((RADIANS(${lat}) - RADIANS(lat)) / 2), 2) + 
-                COS(RADIANS(${lat})) * COS(RADIANS(lat)) * 
-                POWER(SIN((RADIANS(${lon}) - RADIANS(lon)) / 2), 2))) <= 1
+            WITH nearby_restaurants AS (
+                SELECT *, 
+                    ST_Distance(
+                        ST_SetSRID(ST_MakePoint(lon, lat), 4326)::geography,
+                        ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography
+                    ) / 1000 AS distance,
+                    COALESCE(upvotes, 0) as upvotes,
+                    COALESCE(downvotes, 0) as downvotes
+                FROM Restaurants
+                WHERE ST_DWithin(
+                    ST_SetSRID(ST_MakePoint(lon, lat), 4326)::geography,
+                    ST_SetSRID(ST_MakePoint(${lon}, ${lat}), 4326)::geography,
+                    1000
+                )
                 AND venue_type = ${venueType}
-                AND (
-                    hours->'regular' @> ${hoursJson}::jsonb
-                    OR EXISTS (
-                        SELECT 1
-                        FROM jsonb_array_elements(hours->'regular') AS elem
-                        WHERE 
-                            (elem->>'day')::int = ${currentDay}
-                            AND
-                            (elem->>'open')::text <= ${formattedTime}
-                            AND
-                            (elem->>'close')::text >= ${formattedTime}
-                    )
-                );
+            )
+            SELECT * FROM nearby_restaurants
+            WHERE EXISTS (
+                SELECT 1
+                FROM jsonb_array_elements(hours->'regular') AS elem
+                WHERE 
+                    (elem->>'day')::int = ${currentDay}
+                    AND
+                    (elem->>'open')::text <= ${formattedTime}
+                    AND
+                    (elem->>'close')::text >= ${formattedTime}
+            )
+            ORDER BY distance
+            LIMIT 50;
         `;
-        // console.log(result);
         return result.rows;
     }
     catch (error) {
+        console.error(`Error in getStoredRestaurants: ${error.message}`);
         throw new Error(`Error fetching venues: ${error.message}`);
     }
 }
@@ -87,7 +116,7 @@ export async function storeRestaurants(restaurants, venueType) {
         if (restaurants.length === 0) {
             return { result: 'No restaurants to store' };
         }
-        // await createRestaurantTableIfNotExists();
+        await createRestaurantTableIfNotExists();
         // Begin transaction
         await sql `BEGIN`;
         for (const restaurant of restaurants) {
@@ -130,5 +159,31 @@ export async function storeRestaurants(restaurants, venueType) {
         // Rollback in case of an error
         await sql `ROLLBACK`;
         throw new Error(error.message);
+    }
+}
+export async function upvoteRestaurant(id) {
+    try {
+        await sql `
+      UPDATE Restaurants
+      SET upvotes = COALESCE(upvotes, 0) + 1
+      WHERE id = ${id};
+    `;
+        console.log("upvoted");
+    }
+    catch (error) {
+        throw new Error(`Error upvoting restaurant: ${error.message}`);
+    }
+}
+export async function downvoteRestaurant(id) {
+    try {
+        await sql `
+      UPDATE Restaurants
+      SET downvotes = COALESCE(downvotes, 0) + 1
+      WHERE id = ${id};
+    `;
+        console.log("downvoted");
+    }
+    catch (error) {
+        throw new Error(`Error downvoting restaurant: ${error.message}`);
     }
 }
