@@ -12,6 +12,7 @@ interface CustomRequest extends Request {
     location?: { latitude: string; longitude: string } | null;
     venueType?: string;
     isoTime?: string;
+    appId?: string; // Add this line
 }
 
 export const locationMiddleware = (req: CustomRequest, res: Response, next: NextFunction): void => {
@@ -36,6 +37,14 @@ export const locationMiddleware = (req: CustomRequest, res: Response, next: Next
     next();
 };
 
+const appIdMiddleware = (req: CustomRequest, res: Response, next: NextFunction): void => {
+    const appId = req.headers['x-app-id'];
+    if (typeof appId === 'string') {
+        req.appId = appId;
+    }
+    next();
+};
+
 const getHourFromISOTime = (isoTime: string): number => {
     // Parse the ISO time string with moment
     const time = moment(isoTime);
@@ -45,6 +54,7 @@ const getHourFromISOTime = (isoTime: string): number => {
 }
 
 app.use(locationMiddleware);
+app.use(appIdMiddleware); // Add this line to use the new middleware
 
 app.get("/test", async (req: Request, res: Response) => {
     res.send("Express on Vercel");
@@ -105,11 +115,14 @@ app.get("/v1/venues", async (req: CustomRequest, res: Response) => {
   }
 });
 
-app.post("/v1/venues/:id/upvote", async (req: Request, res: Response) => {
+app.post("/v1/venues/:id/upvote", async (req: CustomRequest, res: Response) => {
   try {
     console.log("upvoting");
     const { id } = req.params;
-    await upvoteRestaurant(Number(id));
+    if (!req.appId) {
+      return res.status(400).json({ error: 'App ID is missing' });
+    }
+    await upvoteRestaurant(Number(id), req.appId);
     res.json({ message: 'Upvote successful' });
   } catch (error) {
     console.error("Error upvoting restaurant:", error);
@@ -117,11 +130,14 @@ app.post("/v1/venues/:id/upvote", async (req: Request, res: Response) => {
   }
 });
 
-app.post("/v1/venues/:id/downvote", async (req: Request, res: Response) => {
+app.post("/v1/venues/:id/downvote", async (req: CustomRequest, res: Response) => {
   try {
     console.log("downvoting");
     const { id } = req.params;
-    await downvoteRestaurant(Number(id));
+    if (!req.appId) {
+      return res.status(400).json({ error: 'App ID is missing' });
+    }
+    await downvoteRestaurant(Number(id), req.appId);
     res.json({ message: 'Downvote successful' });
   } catch (error) {
     console.error("Error downvoting restaurant:", error);

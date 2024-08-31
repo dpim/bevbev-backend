@@ -8,12 +8,13 @@ const FOURSQUARE_API_KEY = process.env.FOURSQUARE_API_KEY;
 // cafe - 13034
 // bar - 13009
 export async function findFsqCoffee(lat, lon) {
-    // const coffeeShopCategoryId = "4bf58dd8d48988d1e0931735";
-    return findFourSqVenues(lat, lon, "cafe", "13035");
+    // Category IDs for coffee shops, cafes, and related venues
+    const coffeeShopCategories = "13035,13034,13036,13037,13302";
+    return findFourSqVenues(lat, lon, "coffee shop", coffeeShopCategories);
 }
 export async function findFsqDrinks(lat, lon) {
     // const barCategoryId = "4bf58dd8d48988d116941735"
-    return findFourSqVenues(lat, lon, "bar", "13003");
+    return findFourSqVenues(lat, lon, "bar", "13003,13065,13377");
 }
 async function findFourSqVenues(lat, lon, query, categoryId) {
     const radius = MAX_DISTANCE;

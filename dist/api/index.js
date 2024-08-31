@@ -24,6 +24,13 @@ export const locationMiddleware = (req, res, next) => {
     }
     next();
 };
+const appIdMiddleware = (req, res, next) => {
+    const appId = req.headers['x-app-id'];
+    if (typeof appId === 'string') {
+        req.appId = appId;
+    }
+    next();
+};
 const getHourFromISOTime = (isoTime) => {
     // Parse the ISO time string with moment
     const time = moment(isoTime);
@@ -31,6 +38,7 @@ const getHourFromISOTime = (isoTime) => {
     return time.hour(); // This returns the hour (0-23)
 };
 app.use(locationMiddleware);
+app.use(appIdMiddleware); // Add this line to use the new middleware
 app.get("/test", async (req, res) => {
     res.send("Express on Vercel");
 });
@@ -86,7 +94,10 @@ app.post("/v1/venues/:id/upvote", async (req, res) => {
     try {
         console.log("upvoting");
         const { id } = req.params;
-        await upvoteRestaurant(Number(id));
+        if (!req.appId) {
+            return res.status(400).json({ error: 'App ID is missing' });
+        }
+        await upvoteRestaurant(Number(id), req.appId);
         res.json({ message: 'Upvote successful' });
     }
     catch (error) {
@@ -98,7 +109,10 @@ app.post("/v1/venues/:id/downvote", async (req, res) => {
     try {
         console.log("downvoting");
         const { id } = req.params;
-        await downvoteRestaurant(Number(id));
+        if (!req.appId) {
+            return res.status(400).json({ error: 'App ID is missing' });
+        }
+        await downvoteRestaurant(Number(id), req.appId);
         res.json({ message: 'Downvote successful' });
     }
     catch (error) {

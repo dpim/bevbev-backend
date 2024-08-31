@@ -43,12 +43,12 @@ function mergeResults(storedResults: any[], newResults: any[]): any[] {
 
 async function makeRequestAndCache(latitude: number, longitude: number, venueType: VenueType){
     let fsqResults: any = {};
-    if (venueType === "coffee"){
+    if (venueType === VenueType.coffee){
         fsqResults = await findFsqCoffee(latitude, longitude);
-    } else if (venueType === "drinks"){
+    } else if (venueType === VenueType.drinks){
         fsqResults = await findFsqDrinks(latitude, longitude);
     }
 
-    await storeRestaurants(fsqResults, venueType);
-    return fsqResults ?? [];
+    const { storedRestaurants } = await storeRestaurants(fsqResults, venueType);
+    return storedRestaurants ?? [];
 }

@@ -37,12 +37,12 @@ function mergeResults(storedResults, newResults) {
 }
 async function makeRequestAndCache(latitude, longitude, venueType) {
     let fsqResults = {};
-    if (venueType === "coffee") {
+    if (venueType === VenueType.coffee) {
         fsqResults = await findFsqCoffee(latitude, longitude);
     }
-    else if (venueType === "drinks") {
+    else if (venueType === VenueType.drinks) {
         fsqResults = await findFsqDrinks(latitude, longitude);
     }
-    await storeRestaurants(fsqResults, venueType);
-    return fsqResults ?? [];
+    const { storedRestaurants } = await storeRestaurants(fsqResults, venueType);
+    return storedRestaurants ?? [];
 }
