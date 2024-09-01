@@ -5,7 +5,6 @@ import { Request, Response, NextFunction } from 'express';
 import { getCachedOrFetch, VenueType } from '../util/enrich.js';
 import { z } from 'zod';
 import { upvoteRestaurant, downvoteRestaurant } from '../util/storage.js';
-const fs = require('fs')
 const app = express();
 
 interface CustomRequest extends Request {
