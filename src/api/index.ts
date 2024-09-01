@@ -1,5 +1,5 @@
 import express from 'express';
-import geoip from 'geoip-lite';
+// import geoip from 'geoip-lite';
 import moment from 'moment';
 import { Request, Response, NextFunction } from 'express';
 import { getCachedOrFetch, VenueType } from '../util/enrich.js';
@@ -15,33 +15,33 @@ interface CustomRequest extends Request {
     appId?: string; // Add this line
 }
 
-export const locationMiddleware = (req: CustomRequest, res: Response, next: NextFunction): void => {
-    let ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '';
-    console.log(ip)
-    if (Array.isArray(ip)) {
-        ip = ip.length > 0 ? ip[0] : '';  
-    }
-    ip = ip.split(',')[0].trim();  
-    try {
-        const geo = geoip.lookup(ip);
+// export const locationMiddleware = (req: CustomRequest, res: Response, next: NextFunction): void => {
+//     let ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '';
+//     console.log(ip)
+//     if (Array.isArray(ip)) {
+//         ip = ip.length > 0 ? ip[0] : '';  
+//     }
+//     ip = ip.split(',')[0].trim();  
+//     try {
+//         const geo = geoip.lookup(ip);
 
-        if (geo) {
-            const [latitudeRaw, longitudeRaw] = geo.ll;
+//         if (geo) {
+//             const [latitudeRaw, longitudeRaw] = geo.ll;
 
-            const latitude = `${latitudeRaw}`;
-            const longitude = `${longitudeRaw}`;
+//             const latitude = `${latitudeRaw}`;
+//             const longitude = `${longitudeRaw}`;
 
-            req.location = { latitude, longitude };
-        } else {
-            req.location = null;
-        }
-    } catch (error) {
-        console.error("Error in geoip lookup:", error);
-        req.location = null;
-    }
+//             req.location = { latitude, longitude };
+//         } else {
+//             req.location = null;
+//         }
+//     } catch (error) {
+//         console.error("Error in geoip lookup:", error);
+//         req.location = null;
+//     }
     
-    next();
-};
+//     next();
+// };
 
 const appIdMiddleware = (req: CustomRequest, res: Response, next: NextFunction): void => {
     const appId = req.headers['x-app-id'];
@@ -59,7 +59,7 @@ const getHourFromISOTime = (isoTime: string): number => {
     return time.hour();  // This returns the hour (0-23)
 }
 
-app.use(locationMiddleware);
+//app.use(locationMiddleware);
 app.use(appIdMiddleware); // Add this line to use the new middleware
 
 app.get("/test", async (req: Request, res: Response) => {
