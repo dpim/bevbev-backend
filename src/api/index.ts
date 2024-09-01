@@ -5,7 +5,7 @@ import { Request, Response, NextFunction } from 'express';
 import { getCachedOrFetch, VenueType } from '../util/enrich.js';
 import { z } from 'zod';
 import { upvoteRestaurant, downvoteRestaurant } from '../util/storage.js';
-
+const fs = require('fs')
 const app = express();
 
 interface CustomRequest extends Request {
@@ -19,28 +19,34 @@ export const locationMiddleware = (req: CustomRequest, res: Response, next: Next
     let ip = req.headers['x-forwarded-for'] || req.socket?.remoteAddress || '';
     console.log(ip)
     if (Array.isArray(ip)) {
-        ip = ip.length > 0 ? ip[0] : '';  // Take the first IP if it's an array
+        ip = ip.length > 0 ? ip[0] : '';  
     }
-    ip = ip.split(',')[0].trim();  // Now we safely call split      
-    const geo = geoip.lookup(ip);
+    ip = ip.split(',')[0].trim();  
+    try {
+        const geo = geoip.lookup(ip);
 
-    if (geo) {
-        const [latitudeRaw, longitudeRaw] = geo.ll;
+        if (geo) {
+            const [latitudeRaw, longitudeRaw] = geo.ll;
 
-        const latitude = `${latitudeRaw}`;
-        const longitude = `${longitudeRaw}`;
+            const latitude = `${latitudeRaw}`;
+            const longitude = `${longitudeRaw}`;
 
-        req.location = { latitude, longitude };
-    } else {
+            req.location = { latitude, longitude };
+        } else {
+            req.location = null;
+        }
+    } catch (error) {
+        console.error("Error in geoip lookup:", error);
         req.location = null;
     }
+    
     next();
 };
 
 const appIdMiddleware = (req: CustomRequest, res: Response, next: NextFunction): void => {
     const appId = req.headers['x-app-id'];
     if (typeof appId === 'string') {
-        req.appId = appId;
+        req.appId = appId;``
     }
     next();
 };
