@@ -24,7 +24,7 @@ function mergeResults(storedResults: any[], newResults: any[]): any[] {
     const mergedResults = [...storedResults];
     
     newResults.forEach(newResult => {
-        const existingIndex = mergedResults.findIndex(r => r.fsq_id === newResult.fsq_id);
+        const existingIndex = mergedResults.findIndex(r => r.id === newResult.id);
         if (existingIndex === -1) {
             // Add new result with default upvotes and downvotes
             mergedResults.push({...newResult, upvotes: 0, downvotes: 0});
@@ -32,8 +32,8 @@ function mergeResults(storedResults: any[], newResults: any[]): any[] {
             // Update existing result, preserving upvotes and downvotes
             mergedResults[existingIndex] = {
                 ...newResult,
-                upvotes: mergedResults[existingIndex].upvotes,
-                downvotes: mergedResults[existingIndex].downvotes
+                upvotes: mergedResults[existingIndex].upvotes || 0,
+                downvotes: mergedResults[existingIndex].downvotes || 0
             };
         }
     });

@@ -19,7 +19,8 @@ export async function findFsqCoffee(lat: number, lon: number): Promise<any> {
 
 export async function findFsqDrinks(lat: number, lon: number): Promise<any> {
     // const barCategoryId = "4bf58dd8d48988d116941735"
-    return findFourSqVenues(lat, lon, "bar", "13003,13065,13377");  
+    const barCategories = "13003,13065,13377";
+    return findFourSqVenues(lat, lon, "bar", barCategories);  
 }
 
 
