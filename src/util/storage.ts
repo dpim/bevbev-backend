@@ -81,11 +81,14 @@ export async function createRestaurantTableIfNotExists(): Promise<void> {
             END $$;
         `;
 
+        // Create UserVotes table
+        await createUserVotesTableIfNotExists();
+
         console.log("Table creation and updates completed successfully");
 
     } catch (error: any) {
         console.error(`Error in createRestaurantTableIfNotExists: ${error.message}`);
-        throw new Error(`Error creating Restaurants table: ${error.message}`);
+        throw new Error(`Error creating tables: ${error.message}`);
     }
 }
 
@@ -242,4 +245,27 @@ export async function downvoteRestaurant(id: number, userUuid: string): Promise<
   } catch (error: any) {
     throw new Error(`Error processing downvote: ${error.message}`);
   }
+}
+
+export async function createUserVotesTableIfNotExists(): Promise<void> {
+    try {
+        await sql`
+            CREATE TABLE IF NOT EXISTS UserVotes (
+                id SERIAL PRIMARY KEY,
+                user_uuid UUID NOT NULL,
+                restaurant_id INTEGER NOT NULL,
+                vote_type VARCHAR(10) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                CONSTRAINT fk_restaurant
+                    FOREIGN KEY(restaurant_id) 
+                    REFERENCES Restaurants(id)
+                    ON DELETE CASCADE,
+                CONSTRAINT unique_user_restaurant UNIQUE (user_uuid, restaurant_id)
+            );
+        `;
+        console.log("UserVotes table creation completed successfully");
+    } catch (error: any) {
+        console.error(`Error in createUserVotesTableIfNotExists: ${error.message}`);
+        throw new Error(`Error creating UserVotes table: ${error.message}`);
+    }
 }
