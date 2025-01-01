@@ -11,25 +11,26 @@ const FOURSQUARE_API_KEY = process.env.FOURSQUARE_API_KEY;
 // cafe - 13034
 // bar - 13009
 
-export async function findFsqCoffee(lat: number, lon: number): Promise<any> {
+export async function findFsqCoffee(lat: number, lon: number, query: string | null = null): Promise<any> {
     // Category IDs for coffee shops, cafes, and related venues
     const coffeeShopCategories = "13035,13034,13036,13037,13302";
-    return findFourSqVenues(lat, lon, "coffee shop", coffeeShopCategories);
+    return findFourSqVenues(lat, lon, "coffee shop", coffeeShopCategories, query);
 }
 
-export async function findFsqDrinks(lat: number, lon: number): Promise<any> {
+export async function findFsqDrinks(lat: number, lon: number, query: string | null = null): Promise<any> {
     // const barCategoryId = "4bf58dd8d48988d116941735"
     const barCategories = "13003,13065,13377";
-    return findFourSqVenues(lat, lon, "bar", barCategories);  
+    return findFourSqVenues(lat, lon, "bar", barCategories, query);  
 }
 
 
-async function findFourSqVenues(lat: number, lon: number, query: string, categoryId: string): Promise<any> {
+async function findFourSqVenues(lat: number, lon: number, query: string, categoryId: string, additionalQuery: string | null = null): Promise<any> {
     const radius = MAX_DISTANCE;
     const limit = NUM_RESULTS; // Number of results
     const url = new URL('https://api.foursquare.com/v3/places/search');
+    const queryString = `${additionalQuery} ${query}`
     const accessToken = FOURSQUARE_API_KEY;
-    url.searchParams.append('query', query);
+    url.searchParams.append('query', queryString);
     url.searchParams.append('ll', `${lat},${lon}`);
     url.searchParams.append('radius', `${radius}`);
     url.searchParams.append('categories', categoryId);

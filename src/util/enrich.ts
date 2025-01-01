@@ -7,12 +7,16 @@ export enum VenueType {
     coffee = "coffee"
 }
 
-export async function getCachedOrFetch(latitude: number, longitude: number, venueType: VenueType){
+export async function getCachedOrFetch(latitude: number, longitude: number, venueType: VenueType, query: string | null = null){
+   
+    // query can be "cozy" or "patio"
+    const queryString = query ? query : undefined;
+
     // check DB cache
-    let results = await getStoredRestaurants(latitude, longitude, venueType)
+    let results = await getStoredRestaurants(latitude, longitude, venueType, queryString)
     
     if (!results || results.length < NUM_RESULTS){
-        const newResults = await makeRequestAndCache(latitude, longitude, venueType);
+        const newResults = await makeRequestAndCache(latitude, longitude, venueType, query);
         // Merge new results with existing results, preserving upvotes and downvotes
         results = mergeResults(results, newResults);
     }
@@ -41,12 +45,12 @@ function mergeResults(storedResults: any[], newResults: any[]): any[] {
     return mergedResults;
 }
 
-async function makeRequestAndCache(latitude: number, longitude: number, venueType: VenueType){
+async function makeRequestAndCache(latitude: number, longitude: number, venueType: VenueType, query: string | null = null){
     let fsqResults: any = {};
     if (venueType === VenueType.coffee){
-        fsqResults = await findFsqCoffee(latitude, longitude);
+        fsqResults = await findFsqCoffee(latitude, longitude, query);
     } else if (venueType === VenueType.drinks){
-        fsqResults = await findFsqDrinks(latitude, longitude);
+        fsqResults = await findFsqDrinks(latitude, longitude, query);
     }
 
     const { storedRestaurants } = await storeRestaurants(fsqResults, venueType);

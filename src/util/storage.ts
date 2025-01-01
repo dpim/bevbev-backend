@@ -16,6 +16,7 @@ interface Restaurant {
     photos: any;
     type: any;
     queried_at: Date;
+    query?: string;
 }
 
 async function clearTable(): Promise<void> {
@@ -40,6 +41,7 @@ export async function createRestaurantTableIfNotExists(): Promise<void> {
             CREATE TABLE IF NOT EXISTS Restaurants (
                 id SERIAL PRIMARY KEY,
                 venue_type VARCHAR(255),
+                query VARCHAR(255),
                 fsq_id VARCHAR(255),
                 name VARCHAR(255),
                 owner VARCHAR(255),
@@ -92,7 +94,7 @@ export async function createRestaurantTableIfNotExists(): Promise<void> {
     }
 }
 
-export async function getStoredRestaurants(lat: number, lon: number, venueType: string): Promise<any[]> {
+export async function getStoredRestaurants(lat: number, lon: number, venueType: string, query: string | null = null): Promise<any[]> {
     // console.log("Entering getStoredRestaurants");
     // await createRestaurantTableIfNotExists();
     // await clearTable();
@@ -119,6 +121,11 @@ export async function getStoredRestaurants(lat: number, lon: number, venueType: 
                     1000
                 )
                 AND venue_type = ${venueType}
+                AND (
+                    query IS NULL 
+                    OR query = ${query}
+                    OR (${query} IS NULL AND query IS NULL)
+                )
             )
             SELECT * FROM nearby_restaurants
             WHERE EXISTS (
@@ -143,7 +150,7 @@ export async function getStoredRestaurants(lat: number, lon: number, venueType: 
 }
 
 
-export async function storeRestaurants(restaurants: Restaurant[], venueType: string): Promise<{ result: string, storedRestaurants: any[] }> {
+export async function storeRestaurants(restaurants: Restaurant[], venueType: string, query?: string): Promise<{ result: string, storedRestaurants: any[] }> {
     try {
         if (restaurants.length === 0) {
             return { result: 'No restaurants to store', storedRestaurants: [] };
@@ -162,7 +169,7 @@ export async function storeRestaurants(restaurants: Restaurant[], venueType: str
             const longitude = geocodes?.main?.longitude;
             const result = await sql`
                 INSERT INTO Restaurants (
-                    venue_type, name, lat, lon, description, attributes, hours, menu, photos, location, queried_at
+                    venue_type, name, lat, lon, description, attributes, hours, menu, photos, location, queried_at, query
                 ) VALUES (
                     ${venueType},
                     ${name},
@@ -174,7 +181,8 @@ export async function storeRestaurants(restaurants: Restaurant[], venueType: str
                     ${JSON.stringify(menu)},
                     ${JSON.stringify(photos)},
                     ${JSON.stringify(location)},
-                    NOW()
+                    NOW(),
+                    ${query}
                 )
                 ON CONFLICT (lat, lon, name)
                 DO UPDATE SET
@@ -183,7 +191,8 @@ export async function storeRestaurants(restaurants: Restaurant[], venueType: str
                     hours = EXCLUDED.hours,
                     menu = EXCLUDED.menu,
                     photos = EXCLUDED.photos,
-                    queried_at = NOW()
+                    queried_at = NOW(),
+                    query = EXCLUDED.query
                 RETURNING *;
             `;
             storedRestaurants.push(result.rows[0]);
@@ -202,8 +211,8 @@ export async function storeRestaurants(restaurants: Restaurant[], venueType: str
 }
 
 export async function upvoteRestaurant(id: number, userUuid: string): Promise<void> {
-  try {
-    await sql`
+    try {
+        await sql`
       WITH vote_update AS (
         INSERT INTO UserVotes (user_uuid, restaurant_id, vote_type)
         VALUES (${userUuid}::uuid, ${id}, 'upvote')
@@ -218,15 +227,15 @@ export async function upvoteRestaurant(id: number, userUuid: string): Promise<vo
           downvotes = downvotes - (SELECT was_downvote FROM vote_update)
       WHERE id = ${id};
     `;
-    console.log("upvote processed");
-  } catch (error: any) {
-    throw new Error(`Error processing upvote: ${error.message}`);
-  }
+        console.log("upvote processed");
+    } catch (error: any) {
+        throw new Error(`Error processing upvote: ${error.message}`);
+    }
 }
 
 export async function downvoteRestaurant(id: number, userUuid: string): Promise<void> {
-  try {
-    await sql`
+    try {
+        await sql`
       WITH vote_update AS (
         INSERT INTO UserVotes (user_uuid, restaurant_id, vote_type)
         VALUES (${userUuid}::uuid, ${id}, 'downvote')
@@ -241,10 +250,10 @@ export async function downvoteRestaurant(id: number, userUuid: string): Promise<
           upvotes = upvotes - (SELECT was_upvote FROM vote_update)
       WHERE id = ${id};
     `;
-    console.log("downvote processed");
-  } catch (error: any) {
-    throw new Error(`Error processing downvote: ${error.message}`);
-  }
+        console.log("downvote processed");
+    } catch (error: any) {
+        throw new Error(`Error processing downvote: ${error.message}`);
+    }
 }
 
 export async function createUserVotesTableIfNotExists(): Promise<void> {
