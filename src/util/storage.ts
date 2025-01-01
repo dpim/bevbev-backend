@@ -95,16 +95,13 @@ export async function createRestaurantTableIfNotExists(): Promise<void> {
 }
 
 export async function getStoredRestaurants(lat: number, lon: number, venueType: string, query: string | null = null): Promise<any[]> {
-    // console.log("Entering getStoredRestaurants");
-    // await createRestaurantTableIfNotExists();
-    // await clearTable();
-    // console.log("Table cleared");
     try {
         const currentTime = new Date();
         currentTime.setMinutes(Math.round(currentTime.getMinutes() / 30) * 30);
         const currentDay = currentTime.getDay() + 1;
         const formattedTime = currentTime.toTimeString().slice(0, 5).replace(':', '');
 
+        // Cast the query parameter explicitly to TEXT
         const result = await sql`
             WITH nearby_restaurants AS (
                 SELECT *, 
@@ -122,9 +119,9 @@ export async function getStoredRestaurants(lat: number, lon: number, venueType: 
                 )
                 AND venue_type = ${venueType}
                 AND (
-                    query IS NULL 
-                    OR query = ${query}
-                    OR (${query} IS NULL AND query IS NULL)
+                    ${query}::TEXT IS NULL 
+                    OR query = ${query}::TEXT
+                    OR (${query}::TEXT IS NULL AND query IS NULL)
                 )
             )
             SELECT * FROM nearby_restaurants
