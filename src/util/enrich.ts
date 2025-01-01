@@ -10,10 +10,9 @@ export enum VenueType {
 export async function getCachedOrFetch(latitude: number, longitude: number, venueType: VenueType, query: string | null = null){
    
     // query can be "cozy" or "patio"
-    const queryString = query ? query : undefined;
 
     // check DB cache
-    let results = await getStoredRestaurants(latitude, longitude, venueType, queryString)
+    let results = await getStoredRestaurants(latitude, longitude, venueType, query)
     
     if (!results || results.length < NUM_RESULTS){
         const newResults = await makeRequestAndCache(latitude, longitude, venueType, query);
