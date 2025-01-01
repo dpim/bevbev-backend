@@ -41,7 +41,6 @@ export async function createRestaurantTableIfNotExists(): Promise<void> {
             CREATE TABLE IF NOT EXISTS Restaurants (
                 id SERIAL PRIMARY KEY,
                 venue_type VARCHAR(255),
-                query VARCHAR(255),
                 fsq_id VARCHAR(255),
                 name VARCHAR(255),
                 owner VARCHAR(255),
@@ -56,7 +55,8 @@ export async function createRestaurantTableIfNotExists(): Promise<void> {
                 photos JSONB,
                 queried_at TIMESTAMP,
                 upvotes INTEGER DEFAULT 0,
-                downvotes INTEGER DEFAULT 0
+                downvotes INTEGER DEFAULT 0,
+                query VARCHAR(255)
             );
         `;
 
