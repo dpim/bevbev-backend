@@ -9,6 +9,7 @@ interface Restaurant {
     owner: string;
     geocodes: any;
     location: any;
+    rating: number;
     description: string;
     attributes: any;
     hours: any;
@@ -53,6 +54,7 @@ export async function createRestaurantTableIfNotExists(): Promise<void> {
                 hours JSONB,
                 menu JSONB,
                 photos JSONB,
+                rating NUMERIC DEFAULT 0,
                 queried_at TIMESTAMP,
                 upvotes INTEGER DEFAULT 0,
                 downvotes INTEGER DEFAULT 0,
@@ -161,12 +163,12 @@ export async function storeRestaurants(restaurants: Restaurant[], venueType: str
         const storedRestaurants = [];
 
         for (const restaurant of restaurants) {
-            const { fsq_id, name, location = {}, description = '', geocodes = {}, attributes = {}, hours = {}, menu = {}, photos = [] } = restaurant;
+            const { fsq_id, name, location = {}, description = '', geocodes = {}, attributes = {}, hours = {}, menu = {}, photos = [], rating = 0 } = restaurant;
             const latitude = geocodes?.main?.latitude;
             const longitude = geocodes?.main?.longitude;
             const result = await sql`
                 INSERT INTO Restaurants (
-                    venue_type, name, lat, lon, description, attributes, hours, menu, photos, location, queried_at, query
+                    venue_type, name, lat, lon, description, attributes, hours, menu, photos, location, queried_at, query, rating
                 ) VALUES (
                     ${venueType},
                     ${name},
@@ -179,7 +181,8 @@ export async function storeRestaurants(restaurants: Restaurant[], venueType: str
                     ${JSON.stringify(photos)},
                     ${JSON.stringify(location)},
                     NOW(),
-                    ${query}
+                    ${query},
+                    ${rating}
                 )
                 ON CONFLICT (lat, lon, name)
                 DO UPDATE SET
@@ -189,7 +192,8 @@ export async function storeRestaurants(restaurants: Restaurant[], venueType: str
                     menu = EXCLUDED.menu,
                     photos = EXCLUDED.photos,
                     queried_at = NOW(),
-                    query = EXCLUDED.query
+                    query = EXCLUDED.query,
+                    rating = EXCLUDED.rating
                 RETURNING *;
             `;
             storedRestaurants.push(result.rows[0]);

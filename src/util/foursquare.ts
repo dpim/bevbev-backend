@@ -36,7 +36,7 @@ async function findFourSqVenues(lat: number, lon: number, query: string, categor
     url.searchParams.append('categories', categoryId);
     url.searchParams.append('exclude_all_chains', 'true');
     url.searchParams.append('open_now', 'true');
-    url.searchParams.append('fields', 'fsq_id,categories,distance,description,features,features,hours,geocodes,location,link,menu,name,photos,popularity,price,rating');
+    url.searchParams.append('fields', 'rating,fsq_id,categories,distance,description,features,features,hours,geocodes,location,link,menu,name,photos,popularity,price,rating');
     url.searchParams.append('limit', `${limit}`);
 
     try {
